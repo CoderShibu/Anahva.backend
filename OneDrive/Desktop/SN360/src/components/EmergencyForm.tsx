@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AlertTriangle, Camera, Mic, Send, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,11 @@ const EmergencyForm = () => {
     contact: ''
   });
   const [isRecording, setIsRecording] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,12 +42,60 @@ const EmergencyForm = () => {
     });
   };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    toast({
-      title: isRecording ? "Recording Stopped" : "Recording Started",
-      description: isRecording ? "Voice message saved" : "Speak clearly into your device",
-    });
+
+  // Open camera/gallery for photo/video
+  // Open camera for photo/video
+  const handleCameraClick = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+    }
+  };
+
+  // Open gallery/file picker
+  const handleGalleryClick = () => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.click();
+    }
+  };
+
+  // Start/stop voice recording
+  const toggleRecording = async () => {
+    if (!isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new window.MediaRecorder(stream);
+        setMediaStream(stream);
+        setMediaRecorder(recorder);
+        setAudioChunks([]);
+        recorder.ondataavailable = (e) => {
+          setAudioChunks((prev) => [...prev, e.data]);
+        };
+        recorder.onstop = () => {
+          stream.getTracks().forEach((track) => track.stop());
+          toast({
+            title: "Recording Stopped",
+            description: "Voice message saved.",
+          });
+        };
+        recorder.start();
+        setIsRecording(true);
+        toast({
+          title: "Recording Started",
+          description: "Speak clearly into your device.",
+        });
+      } catch (err) {
+        toast({
+          title: "Microphone Error",
+          description: "Could not access microphone. Please check permissions.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+      }
+      setIsRecording(false);
+    }
   };
 
   return (
@@ -118,10 +171,29 @@ const EmergencyForm = () => {
         <div className="border-t pt-4">
           <label className="text-sm font-medium mb-3 block">Additional Evidence (Optional)</label>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" variant="outline" className="flex items-center">
+            <Button type="button" variant="outline" className="flex items-center" onClick={handleCameraClick}>
               <Camera className="h-4 w-4 mr-2" />
               Photo/Video
             </Button>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              capture="user"
+              ref={cameraInputRef}
+              style={{ display: 'none' }}
+              onClick={e => {
+                // On some browsers, re-selecting the same file doesn't trigger onChange, so reset value
+                (e.target as HTMLInputElement).value = '';
+              }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  toast({
+                    title: "Media Selected",
+                    description: `${e.target.files[0].name} selected.`,
+                  });
+                }
+              }}
+            />
             
             <Button
               type="button"
@@ -133,10 +205,24 @@ const EmergencyForm = () => {
               {isRecording ? 'Stop Recording' : 'Voice Message'}
             </Button>
             
-            <Button type="button" variant="outline" className="flex items-center">
+            <Button type="button" variant="outline" className="flex items-center" onClick={handleGalleryClick}>
               <Upload className="h-4 w-4 mr-2" />
               Upload File
             </Button>
+            <input
+              type="file"
+              accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              ref={galleryInputRef}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  toast({
+                    title: "File Selected",
+                    description: `${e.target.files[0].name} selected.`,
+                  });
+                }
+              }}
+            />
           </div>
         </div>
 
