@@ -76,8 +76,13 @@ app.post("/api/chat", async (req, res) => {
 
   } catch (err) {
     console.error("❌ CHAT ERROR:", err.message);
+    console.error("❌ FULL ERROR:", err);
+    console.error("❌ GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+    console.error("❌ GEMINI_API_KEY length:", process.env.GEMINI_API_KEY?.length || 0);
+
     res.status(500).json({
       success: false,
+      error: err.message,
       reply: "I'm here with you. Something went wrong—can you try again?"
     });
   }
