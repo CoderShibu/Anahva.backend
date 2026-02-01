@@ -2,120 +2,96 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import Journal from "./models/Journal.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-/* --------------- DATABASE CONNECTION --------------- */
-const connectDB = async () => {
-  try {
-    if (process.env.MONGODB_URI) {
-      await mongoose.connect(process.env.MONGODB_URI);
-      console.log("✅ MongoDB connected");
-    } else {
-      console.log("⚠️ MONGODB_URI not set - Journal history won't persist");
-    }
-  } catch (err) {
-    console.error("❌ MongoDB connection failed:", err.message);
-  }
-};
+/* ---------------- ENV CHECK ---------------- */
+if (!process.env.GEMINI_API_KEY) {
+  console.error("❌ GEMINI_API_KEY missing");
+}
 
-// Connect to MongoDB
-connectDB();
+if (!process.env.MONGODB_URI) {
+  console.error("❌ MONGODB_URI missing");
+}
 
-/* --------------- GEMINI AI SETUP --------------- */
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+/* ---------------- DB ---------------- */
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB error", err));
 
-/* --------------- ROOT CHECK --------------- */
+const JournalSchema = new mongoose.Schema({
+  entry: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Journal =
+  mongoose.models.Journal || mongoose.model("Journal", JournalSchema);
+
+/* ---------------- ROOT ---------------- */
 app.get("/", (req, res) => {
   res.send("Anahva backend is running");
 });
 
-/* --------------- CHATBOT (GEMINI AI) --------------- */
+/* ---------------- CHATBOT (GEMINI) ---------------- */
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 app.post("/api/chat", async (req, res) => {
   try {
     const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
+      return res.status(400).json({ error: "Prompt required" });
     }
 
-    // Use Gemini API if key exists
-    if (process.env.GEMINI_API_KEY) {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const result = await model.generateContent(prompt);
-      const response = result.response.text();
+    const model = genAI.getGenerativeModel({
+      model: "gemini-pro",
+      systemInstruction:
+        "You are Anahva, a calm, empathetic mental health companion. Respond gently and supportively."
+    });
 
-      res.json({
-        success: true,
-        reply: response
-      });
-    } else {
-      // Fallback if no API key
-      res.json({
-        success: true,
-        reply: `I received your message: "${prompt}". Please set GEMINI_API_KEY to enable AI responses.`
-      });
-    }
+    const result = await model.generateContent(prompt);
+    const reply = result.response.text();
+
+    res.json({ success: true, reply });
 
   } catch (err) {
-    console.error("Chat error:", err);
+    console.error("❌ CHAT ERROR:", err.message);
     res.status(500).json({
       success: false,
-      reply: "I'm having trouble responding right now."
+      reply: "I'm here with you. Something went wrong—can you try again?"
     });
   }
 });
 
-/* --------------- JOURNAL (SAVE) --------------- */
+/* ---------------- JOURNAL SAVE ---------------- */
 app.post("/api/journal", async (req, res) => {
   try {
     const { entry } = req.body;
-
     if (!entry) {
-      return res.status(400).json({
-        success: false,
-        message: "Journal entry is required"
-      });
+      return res.status(400).json({ error: "Entry required" });
     }
 
-    // Save to MongoDB if connected
-    if (mongoose.connection.readyState === 1) {
-      await Journal.create({ entry });
-      console.log("📝 Journal saved to MongoDB:", entry.substring(0, 50));
-    } else {
-      console.log("⚠️ MongoDB not connected - journal saved locally only");
-    }
+    await Journal.create({ entry });
 
-    res.json({
-      success: true,
-      message: "Journal entry saved successfully"
-    });
+    res.json({ success: true });
 
   } catch (err) {
-    console.error("Journal save error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Failed to save journal entry"
-    });
+    console.error("❌ JOURNAL SAVE ERROR:", err.message);
+    res.status(500).json({ success: false });
   }
 });
 
-/* --------------- JOURNAL (HISTORY) --------------- */
+/* ---------------- JOURNAL HISTORY ---------------- */
 app.get("/api/journal/history", async (req, res) => {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const journals = await Journal.find().sort({ createdAt: -1 }).limit(50);
-      res.json(journals);
-    } else {
-      res.json([]);
-    }
+    const journals = await Journal.find().sort({ createdAt: -1 });
+    res.json(journals);
   } catch (err) {
-    console.error("Journal history error:", err);
-    res.status(500).json({ error: "Failed to fetch journal history" });
+    console.error("❌ JOURNAL FETCH ERROR:", err.message);
+    res.status(500).json([]);
   }
 });
 
