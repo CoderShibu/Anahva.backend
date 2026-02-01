@@ -46,6 +46,40 @@ app.get("/", (req, res) => {
   res.send("Anahva backend is running");
 });
 
+/* ---- AUTH (Simple Demo) ---- */
+app.post("/api/auth/demo", (req, res) => {
+  const { name, password } = req.body;
+
+  // Simple demo auth - accepts any username/password
+  // For demo purposes, username and password must match (e.g., Shibasish/Shibasish)
+  if (name && password && name === password) {
+    res.json({
+      success: true,
+      token: `demo_token_${Date.now()}`,
+      user: { name }
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      error: "Invalid credentials. For demo, use same value for username and password."
+    });
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  res.json({ success: true });
+});
+
+app.get("/api/auth/verify", (req, res) => {
+  // For demo, always return valid if a token is provided
+  const token = req.headers.authorization;
+  if (token) {
+    res.json({ success: true, valid: true });
+  } else {
+    res.status(401).json({ success: false, error: "No token" });
+  }
+});
+
 /* ---- CHATBOT ---- */
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
