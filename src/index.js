@@ -81,48 +81,33 @@ app.get("/api/auth/verify", (req, res) => {
 });
 
 /* ---- CHATBOT ---- */
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
+// Strict simplified version requested by user
 app.post("/api/chat", async (req, res) => {
   try {
     const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: "Prompt required" });
+      return res.status(400).json({ reply: "Prompt missing" });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.json({
-        success: true,
-        reply: `I hear you. You said: "${prompt}". (API not configured)`
-      });
+      console.error("GEMINI_API_KEY missing");
+      return res.status(500).json({ reply: "Server misconfigured" });
     }
 
-    // Use current Gemini model (gemini-pro was deprecated April 2025)
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-    });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // Using gemini-2.0-flash as gemini-pro is deprecated
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // Create the chat prompt with context
-    const systemPrompt = "You are Anahva, a calm, empathetic mental health companion designed for Indian users. Respond gently and supportively. Keep responses concise but caring.";
-    const fullPrompt = `${systemPrompt}\n\nUser: ${prompt}\n\nAnahva:`;
-
-    const result = await model.generateContent(fullPrompt);
+    const result = await model.generateContent(prompt);
     const reply = result.response.text();
 
-    res.json({ success: true, reply });
+    console.log("CHAT OK:", reply);
 
+    return res.json({ reply });
   } catch (err) {
-    console.error("❌ CHAT ERROR:", err.message);
-    console.error("❌ FULL ERROR:", err);
-    console.error("❌ GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
-    console.error("❌ GEMINI_API_KEY length:", process.env.GEMINI_API_KEY?.length || 0);
-
-    res.status(500).json({
-      success: false,
-      error: err.message,
-      reply: "I'm here with you. Something went wrong—can you try again?"
-    });
+    console.error("CHAT ERROR:", err);
+    return res.status(500).json({ reply: "Gemini failed" });
   }
 });
 
