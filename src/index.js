@@ -98,12 +98,16 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
+    // Use current Gemini model (gemini-pro was deprecated April 2025)
     const model = genAI.getGenerativeModel({
-      model: "gemini-pro",
-      systemInstruction: "You are Anahva, a calm, empathetic mental health companion. Respond gently and supportively."
+      model: "gemini-2.0-flash",
     });
 
-    const result = await model.generateContent(prompt);
+    // Create the chat prompt with context
+    const systemPrompt = "You are Anahva, a calm, empathetic mental health companion designed for Indian users. Respond gently and supportively. Keep responses concise but caring.";
+    const fullPrompt = `${systemPrompt}\n\nUser: ${prompt}\n\nAnahva:`;
+
+    const result = await model.generateContent(fullPrompt);
     const reply = result.response.text();
 
     res.json({ success: true, reply });
