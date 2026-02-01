@@ -74,7 +74,7 @@ app.post(
       }
 
       const model = genAI.getGenerativeModel({
-        model: "gemini-pro",
+        model: "models/gemini-2.5-flash",
         systemInstruction:
           "You are Anahva, a calm, empathetic mental health companion. Respond gently and supportively.",
       });
