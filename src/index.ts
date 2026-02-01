@@ -4,14 +4,18 @@ import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ChatRequest, ChatResponse } from "./types/chat";
 import { JournalEntry } from "./types/journal";
+import dotenv from "dotenv";
 
 const app = express();
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"]
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+  }),
+);
 app.use(express.json());
+dotenv.config();
 
 /* ---- ENV CHECK ---- */
 if (!process.env.GEMINI_API_KEY) {
@@ -26,22 +30,24 @@ if (!process.env.MONGODB_URI) {
 let journalMemory: JournalEntry[] = [];
 let mongoConnected = false;
 
-mongoose.connect(process.env.MONGODB_URI || "")
+mongoose
+  .connect(process.env.MONGODB_URI || "")
   .then(() => {
     mongoConnected = true;
     console.log("✅ MongoDB connected");
   })
-  .catch(err => {
+  .catch((err) => {
     mongoConnected = false;
     console.warn("⚠️ MongoDB unavailable, using memory");
   });
 
 const JournalSchema = new mongoose.Schema({
   text: String,
-  createdAt: String
+  createdAt: String,
 });
 
-const Journal = mongoose.models.Journal || mongoose.model("Journal", JournalSchema);
+const Journal =
+  mongoose.models.Journal || mongoose.model("Journal", JournalSchema);
 
 /* ---- HEALTH CHECK ---- */
 app.get("/", (req: Request, res: Response) => {
@@ -63,27 +69,27 @@ app.post(
 
       if (!process.env.GEMINI_API_KEY) {
         return res.json({
-          reply: `I hear you. You said: "${prompt}". (API not configured)`
+          reply: `I hear you. You said: "${prompt}". (API not configured)`,
         });
       }
 
       const model = genAI.getGenerativeModel({
         model: "gemini-pro",
-        systemInstruction: "You are Anahva, a calm, empathetic mental health companion. Respond gently and supportively."
+        systemInstruction:
+          "You are Anahva, a calm, empathetic mental health companion. Respond gently and supportively.",
       });
 
       const result = await model.generateContent(prompt);
       const reply = result.response.text();
 
       res.json({ reply });
-
     } catch (err) {
       console.error("❌ CHAT ERROR:", err);
       res.status(500).json({
-        reply: "I'm here with you. Something went wrong—can you try again?"
+        reply: "I'm here with you. Something went wrong—can you try again?",
       });
     }
-  }
+  },
 );
 
 /* ---- JOURNAL SAVE ---- */
@@ -99,7 +105,7 @@ app.post(
 
       const journal: JournalEntry = {
         text: entry,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       if (mongoConnected) {
@@ -108,12 +114,11 @@ app.post(
       journalMemory.push(journal);
 
       res.json({ success: true });
-
     } catch (err) {
       console.error("❌ JOURNAL SAVE ERROR:", err);
       res.status(500).json({ success: false, error: "Save failed" });
     }
-  }
+  },
 );
 
 /* ---- JOURNAL HISTORY ---- */
@@ -126,8 +131,9 @@ app.get(
       if (mongoConnected) {
         journals = await Journal.find().sort({ createdAt: -1 });
       } else {
-        journals = journalMemory.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        journals = journalMemory.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
       }
 
@@ -136,7 +142,7 @@ app.get(
       console.error("❌ JOURNAL FETCH ERROR:", err);
       res.json(journalMemory);
     }
-  }
+  },
 );
 
 /* ---- START SERVER ---- */
