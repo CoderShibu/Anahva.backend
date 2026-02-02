@@ -16,7 +16,7 @@ class AIService {
       console.log("✅ Google Gemini AI initialized");
     } else {
       console.warn(
-        "⚠️  No GOOGLE_API_KEY found. AI will use fallback responses.",
+        "⚠️  No GOOGLE_API_KEY found. AI will use fallback responses."
       );
     }
   }
@@ -101,7 +101,7 @@ Keep responses under 250 tokens. Focus on immediate calming and grounding.`,
    * Generate AI response
    */
   async generateResponse(message, mode = "LISTEN", language = "EN") {
-    // Validate inputs
+    // Validate input
     if (!message || typeof message !== "string") {
       throw new Error("Invalid message");
     }
@@ -109,13 +109,12 @@ Keep responses under 250 tokens. Focus on immediate calming and grounding.`,
     mode = ["LISTEN", "REFLECT", "CALM"].includes(mode) ? mode : "LISTEN";
     language = ["EN", "HI"].includes(language) ? language : "EN";
 
-    // If no AI client, use fallback
-    if (!this.model) {
+    // If API key missing or model not initialized → fallback
+    if (!config.googleApiKey || !this.model) {
       return this.getFallbackResponse(mode, language);
     }
 
     try {
-      // Build prompt
       const systemPrompt = this.getSystemPrompt(mode, language);
       const fullPrompt = `${systemPrompt}
 
@@ -123,9 +122,8 @@ User message: ${message}
 
 Respond with empathy and follow the rules above:`;
 
-      // Generate response
-      const result = await this.model.generateContent({
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      // ✅ CORRECT Gemini Flash call
+      const result = await this.model.generateContent(fullPrompt, {
         generationConfig: {
           maxOutputTokens:
             mode === "CALM" ? 300 : mode === "REFLECT" ? 200 : 150,
@@ -133,34 +131,13 @@ Respond with empathy and follow the rules above:`;
           topP: 0.95,
           topK: 40,
         },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-        ],
       });
 
-      const response = result.response;
-      const text = response.text();
+      const text = result?.response?.text?.();
 
       return text || this.getFallbackResponse(mode, language);
     } catch (error) {
-      console.error("AI generation error:", error.message);
-
-      // Return fallback on error
+      console.error("AI generation error:", error);
       return this.getFallbackResponse(mode, language);
     }
   }
