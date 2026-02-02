@@ -5,10 +5,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = express();
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"]
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+  }),
+);
 app.use(express.json());
 
 /* ---- ENV CHECK ---- */
@@ -24,22 +26,24 @@ if (!process.env.MONGODB_URI) {
 let journalMemory = [];
 let mongoConnected = false;
 
-mongoose.connect(process.env.MONGODB_URI || "")
+mongoose
+  .connect(process.env.MONGODB_URI || "")
   .then(() => {
     mongoConnected = true;
     console.log("✅ MongoDB connected");
   })
-  .catch(err => {
+  .catch((err) => {
     mongoConnected = false;
     console.warn("⚠️ MongoDB unavailable, using memory");
   });
 
 const JournalSchema = new mongoose.Schema({
   entry: String,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
-const Journal = mongoose.models.Journal || mongoose.model("Journal", JournalSchema);
+const Journal =
+  mongoose.models.Journal || mongoose.model("Journal", JournalSchema);
 
 /* ---- HEALTH CHECK ---- */
 app.get("/", (req, res) => {
@@ -56,12 +60,13 @@ app.post("/api/auth/demo", (req, res) => {
     res.json({
       success: true,
       token: `demo_token_${Date.now()}`,
-      user: { name }
+      user: { name },
     });
   } else {
     res.status(401).json({
       success: false,
-      error: "Invalid credentials. For demo, use same value for username and password."
+      error:
+        "Invalid credentials. For demo, use same value for username and password.",
     });
   }
 });
@@ -107,7 +112,9 @@ app.post("/api/chat", async (req, res) => {
     return res.json({ reply });
   } catch (err) {
     console.error("CHAT ERROR:", err);
-    return res.status(500).json({ reply: "Gemini failed" });
+    return res
+      .status(500)
+      .json({ reply: "Gemini failed", error: JSON.stringify(err) });
   }
 });
 
@@ -127,7 +134,6 @@ app.post("/api/journal", async (req, res) => {
     journalMemory.push(data);
 
     res.json({ success: true });
-
   } catch (err) {
     console.error("❌ JOURNAL SAVE ERROR:", err.message);
     res.status(500).json({ success: false, error: "Save failed" });
@@ -142,7 +148,9 @@ app.get("/api/journal/history", async (req, res) => {
     if (mongoConnected) {
       journals = await Journal.find().sort({ createdAt: -1 });
     } else {
-      journals = journalMemory.sort((a, b) => new Date(b.date) - new Date(a.date));
+      journals = journalMemory.sort(
+        (a, b) => new Date(b.date) - new Date(a.date),
+      );
     }
 
     res.json(journals);
