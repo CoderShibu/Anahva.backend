@@ -8,7 +8,7 @@ import { auditLog } from '../middlewares/audit.middleware.js';
 const router = express.Router();
 
 // All chat routes require authentication
-router.use(authenticateToken);
+//router.use(authenticateToken);
 
 // Send chat message
 router.post('/message', generalLimiter, auditLog('chat_message'), chatController.sendMessage);
