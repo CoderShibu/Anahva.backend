@@ -1,4 +1,5 @@
 // AI Service - Google Gemini Integration
+<<<<<<< HEAD
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import config from '../config/env.js';
 
@@ -24,6 +25,37 @@ class AIService {
         const prompts = {
             LISTEN: {
                 EN: `You are Anahva, a compassionate mental wellness companion. Your role is to LISTEN with empathy.
+=======
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import config from "../config/env.js";
+
+class AIService {
+  constructor() {
+    this.geminiClient = null;
+    this.model = null;
+
+    // Initialize Gemini if API key exists
+    if (config.googleApiKey) {
+      this.geminiClient = new GoogleGenerativeAI(config.googleApiKey);
+      this.model = this.geminiClient.getGenerativeModel({
+        model: "models/gemini-2.5-flash",
+      });
+      console.log("✅ Google Gemini AI initialized");
+    } else {
+      console.warn(
+        "⚠️  No GOOGLE_API_KEY found. AI will use fallback responses."
+      );
+    }
+  }
+
+  /**
+   * Get system prompt based on mode
+   */
+  getSystemPrompt(mode, language) {
+    const prompts = {
+      LISTEN: {
+        EN: `You are Anahva, a compassionate mental wellness companion. Your role is to LISTEN with empathy.
+>>>>>>> 94cf55708ecf343c1f89d2c455aff79f76dfe894
 
 STRICT RULES:
 ❌ NO medical diagnosis
@@ -36,10 +68,17 @@ STRICT RULES:
 ✅ REFLECT feelings back
 
 Keep responses under 150 tokens. Be warm, gentle, and use Indian cultural context when appropriate.`,
+<<<<<<< HEAD
                 HI: `आप अनहवा हैं, एक दयालु मानसिक स्वास्थ्य साथी। आपकी भूमिका सहानुभूति से सुनना है।`,
             },
             REFLECT: {
                 EN: `You are Anahva, guiding gentle self-reflection.
+=======
+        HI: `आप अनहवा हैं, एक दयालु मानसिक स्वास्थ्य साथी। आपकी भूमिका सहानुभूति से सुनना है।`,
+      },
+      REFLECT: {
+        EN: `You are Anahva, guiding gentle self-reflection.
+>>>>>>> 94cf55708ecf343c1f89d2c455aff79f76dfe894
 
 STRICT RULES:
 ❌ NO medical diagnosis or advice
@@ -50,10 +89,17 @@ STRICT RULES:
 ✅ ENCOURAGE pattern awareness
 
 Keep responses under 200 tokens. Ask thoughtful questions that help users understand themselves.`,
+<<<<<<< HEAD
                 HI: `आप अनहवा हैं, कोमल आत्म-चिंतन का मार्गदर्शन करते हैं।`,
             },
             CALM: {
                 EN: `You are Anahva, providing grounding and calming support.
+=======
+        HI: `आप अनहवा हैं, कोमल आत्म-चिंतन का मार्गदर्शन करते हैं।`,
+      },
+      CALM: {
+        EN: `You are Anahva, providing grounding and calming support.
+>>>>>>> 94cf55708ecf343c1f89d2c455aff79f76dfe894
 
 STRICT RULES:
 ❌ NO medical advice
@@ -64,6 +110,7 @@ STRICT RULES:
 ✅ BE reassuring without making promises
 
 Keep responses under 250 tokens. Focus on immediate calming and grounding.`,
+<<<<<<< HEAD
                 HI: `आप अनहवा हैं, शांति और स्थिरता प्रदान करते हैं।`,
             },
         };
@@ -114,11 +161,63 @@ Keep responses under 250 tokens. Focus on immediate calming and grounding.`,
             // Build prompt
             const systemPrompt = this.getSystemPrompt(mode, language);
             const fullPrompt = `${systemPrompt}
+=======
+        HI: `आप अनहवा हैं, शांति और स्थिरता प्रदान करते हैं।`,
+      },
+    };
+
+    return prompts[mode]?.[language] || prompts.LISTEN.EN;
+  }
+
+  /**
+   * Get fallback response when AI unavailable
+   */
+  getFallbackResponse(mode, language) {
+    const fallbacks = {
+      LISTEN: {
+        EN: "I'm here to listen. Can you tell me more about what you're experiencing?",
+        HI: "मैं सुनने के लिए यहाँ हूँ। क्या आप मुझे और बता सकते हैं?",
+      },
+      REFLECT: {
+        EN: "That sounds important. What does this situation mean to you?",
+        HI: "यह महत्वपूर्ण लगता है। आपके लिए इसका क्या मतलब है?",
+      },
+      CALM: {
+        EN: "Let's take a moment. Try taking a slow, deep breath in... and out. How are you feeling right now?",
+        HI: "आइए एक क्षण लें। धीरे-धीरे गहरी सांस लें... और छोड़ें। अभी आप कैसा महसूस कर रहे हैं?",
+      },
+    };
+
+    return fallbacks[mode]?.[language] || fallbacks.LISTEN.EN;
+  }
+
+  /**
+   * Generate AI response
+   */
+  async generateResponse(message, mode = "LISTEN", language = "EN") {
+    // Validate input
+    if (!message || typeof message !== "string") {
+      throw new Error("Invalid message");
+    }
+
+    mode = ["LISTEN", "REFLECT", "CALM"].includes(mode) ? mode : "LISTEN";
+    language = ["EN", "HI"].includes(language) ? language : "EN";
+
+    // If API key missing or model not initialized → fallback
+    if (!config.googleApiKey || !this.model) {
+      return this.getFallbackResponse(mode, language);
+    }
+
+    try {
+      const systemPrompt = this.getSystemPrompt(mode, language);
+      const fullPrompt = `${systemPrompt}
+>>>>>>> 94cf55708ecf343c1f89d2c455aff79f76dfe894
 
 User message: ${message}
 
 Respond with empathy and follow the rules above:`;
 
+<<<<<<< HEAD
             // Generate response
             const result = await this.model.generateContent({
                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
@@ -160,6 +259,27 @@ Respond with empathy and follow the rules above:`;
             return this.getFallbackResponse(mode, language);
         }
     }
+=======
+      // ✅ CORRECT Gemini Flash call
+      const result = await this.model.generateContent(fullPrompt, {
+        generationConfig: {
+          maxOutputTokens:
+            mode === "CALM" ? 300 : mode === "REFLECT" ? 200 : 150,
+          temperature: 0.8,
+          topP: 0.95,
+          topK: 40,
+        },
+      });
+
+      const text = result?.response?.text?.();
+
+      return text || this.getFallbackResponse(mode, language);
+    } catch (error) {
+      console.error("AI generation error:", error);
+      return this.getFallbackResponse(mode, language);
+    }
+  }
+>>>>>>> 94cf55708ecf343c1f89d2c455aff79f76dfe894
 }
 
 export default new AIService();
